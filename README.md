@@ -33,13 +33,7 @@ Architecture
 Unlike script-heavy distros, RAINING-OS moves critical system settings into compiled C binaries for speed and security. Our firewall management tool, located in /src/security.c, interfaces directly with ufw to provide hardware-level lockdown presets.
 
 Installation
-Current build is available via the ISO releases tab.
-
-Flash to USB using dd or BalenaEtcher.
-
-Boot and follow the standard Calamares installer.
-
-System security timers will initialize automatically on the first boot.
+Plan to release usable ISO by FEB 2026
 
 Roadmap
 [ ] Web-based orchestration interface for remote updates.
