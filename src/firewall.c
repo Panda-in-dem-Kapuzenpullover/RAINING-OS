@@ -14,8 +14,7 @@
 
 /*
 Yes, this is an extremely simple project...
-I'm not even gonna bother putting comments on it--like if you can't read this u prolly shouldn't
-be sneaking through here.
+I'm not even gonna bother putting comments on it.
 */
     int main(int argc, char *argv[]) {
         if (argc < 2) {
