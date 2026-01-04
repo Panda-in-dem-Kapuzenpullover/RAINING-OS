@@ -17,7 +17,7 @@ Access Control: Hardened AppArmor profiles active by default.
 
 Performance
 
-Liquorix Kernel: Zen-interactive tuned kernel for low-latency desktop use and gaming.
+Liquorix Kernel: Zen-interactive tuned kernel for low-latency desktop use and gaming. (FOR DESKTOP ONLY)
 
 Minimal Overhead: Stripped-back background services; only what is essential for security and stability remains.
 
@@ -28,9 +28,6 @@ Department Lead: APRIL
 KDE Plasma: Highly customized, performance-tuned environment.
 
 Ready-to-Use: No "Stock Gnome" bloat. Modern layout, customized shaders, and low-latency input profiles are standard.
-
-Architecture
-Unlike script-heavy distros, RAINING-OS moves critical system settings into compiled C binaries for speed and security. Our firewall management tool, located in /src/security.c, interfaces directly with ufw to provide hardware-level lockdown presets.
 
 Installation
 Plan to release usable ISO by FEB 2026
