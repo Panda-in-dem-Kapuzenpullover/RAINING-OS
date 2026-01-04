@@ -41,7 +41,7 @@ be sneaking through here.
         system ("ufw allow out 67,68/udp");
     }
     else if (decision == 3) {
-    printf("Daddy...hack me");
+    printf("Extremely dangerous, do not enable\n");
         system("ufw disable");
     }
     else {
