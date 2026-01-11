@@ -1,0 +1,12 @@
+# Never commit private keys!
+private_key.pem
+*_private_*
+*.pem.bak
+
+# Build artifacts
+*.o
+secure-update
+secure-update-debug
+a.out
+
+
