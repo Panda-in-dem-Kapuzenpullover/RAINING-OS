@@ -33,9 +33,7 @@ Installation
 Plan to release usable ISO by FEB 2026
 
 Roadmap
-[ ] Web-based orchestration interface for remote updates.
 
-[ ] SSH terminal bridge for centralized fleet management.
 
 [ ] Transition to custom-built SELinux profiles.
 
