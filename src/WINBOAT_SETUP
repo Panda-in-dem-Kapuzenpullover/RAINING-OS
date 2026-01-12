@@ -19,7 +19,7 @@ SystemStats STRUCTURE() {
     }
 
 
-    stats.free_ram_gb = (info.freeram * info.mem_unit) / (1024 * 1024 * 1024);
+    stats.free_ram_gb = (info.totalram * info.mem_unit) / (1024 * 1024 * 1024);
     stats.cpu_threads = sysconf(_SC_NPROCESSORS_ONLN);
 
     return stats;
