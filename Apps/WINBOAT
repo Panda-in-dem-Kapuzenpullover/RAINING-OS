@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=RAINING-OS Windows Runner
+Exec=/usr/local/bin/raining-exec %f
+MimeType=application/x-ms-dos-executable;application/x-msdownload;
+NoDisplay=true
+Terminal=false
