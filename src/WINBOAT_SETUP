@@ -1,0 +1,53 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/sysinfo.h>
+
+
+typedef struct {
+    unsigned long free_ram_gb;
+    long cpu_threads;
+} SystemStats;
+
+SystemStats STRUCTURE() {
+    struct sysinfo info;
+    SystemStats stats;
+
+    if (sysinfo(&info) != 0) {
+        perror("sysinfo");
+        exit(1);
+    }
+
+
+    stats.free_ram_gb = (info.freeram * info.mem_unit) / (1024 * 1024 * 1024);
+    stats.cpu_threads = sysconf(_SC_NPROCESSORS_ONLN);
+
+    return stats;
+}
+
+void INITIALIZE_WINBOAT(SystemStats s) {
+    char command[512];
+    long target_cores = s.cpu_threads / 3;
+    unsigned long target_ram = s.free_ram_gb / 3;
+    if (target_cores < 2) target_cores = 2;
+    if (target_ram < 4) target_ram = 4;
+    snprintf(command, sizeof(command),
+             "docker update --cpus %ld --memory %luG winboat-vessel",
+             target_cores, target_ram);
+
+    int ret = system(command);
+
+    if (ret != 0) {
+        fprintf(stderr, "Error: Failed to set WinBoat hardware limits.\n");
+    } else {
+        printf("WinBoat optimized successfully.\n");
+    }
+}
+
+int main(void) {
+
+    SystemStats current_machine = STRUCTURE();
+    INITIALIZE_WINBOAT(current_machine);
+
+    return 0;
+}
