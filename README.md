@@ -25,7 +25,7 @@ Ricing & UX
 
 Department Lead: APRIL
 
-KDE Plasma: Highly customized, performance-tuned environment.
+Gnome: Highly customized, performance-tuned environment.
 
 Ready-to-Use: No "Stock Gnome" bloat. Modern layout, customized shaders, and low-latency input profiles are standard.
 
