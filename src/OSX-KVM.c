@@ -3,7 +3,8 @@
 #include <unistd.h>
 #include <string.h>
 /*
- * RAINING-OS Secure Update System
+ * RAINING-OS MACOS_VM INITIALIZER. 
+ * Massive thanks to Kholia, people like you make the world go around. https://github.com/kholia
  * Copyright (C) 2026 Macaulay Smith
  *
  * This program is free software: you can redistribute it and/or modify
