@@ -1,6 +1,5 @@
-
 /*
- * RAINING-OS Secure Update System
+* RAINING-OS Secure Update System
  * Copyright (C) 2026 Macaulay Smith
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,42 +19,45 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <glob.h>
+#include <sys/wait.h>
 
-#define PUBLIC_KEY_PATH "/etc/CRYPTOGRAPHY/public_key.pem"
+extern char **environ;
+
+const char *public_key =
+    "-----BEGIN PUBLIC KEY-----\n"
+    "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAxWhx7fKamavVJpdAFZ2i\n"
+    "8gryMG/u5UQ+s5zYJvMfLzR4ZRf6vcyYOpjQbOKUL2lCWBVTrpOTjUh8ib6ZMZbU\n"
+    "W4/BCtxDwzsDbqRLFqlYhS0cCGEJw0RymBzMdLEfLE+w6qB63pvnYZ9WcNijU16w\n"
+    "YfiUiRflN+3/81Kdx/mH5tqdMT4ZIYAYc1zi/SWmMgqEQsQ/unt4Ta6eYqmC8pYY\n"
+    "mztiQLZALG46WkdFc5P2n7JmeeZDSG5ZNJ0bcx2Ed0apyXJ2Ydppf14nedFHOGdH\n"
+    "YhUabLA2aNKktzCchUmbrVwkySJKIx1QqVAR6KsZ/rBY5ndiKUVVlXqb94Kij3Ci\n"
+    "0JTIIUM81pS3yphp+IYkrGqKazuDg+2Q55KCmYc3glNMs7UCB9dt3WedeH/isFbn\n"
+    "Jb0vYNzaV2hbNpRBPgehpdl1FNodQZQB2GXtf/693DiDw7E9pn0Kz234ZHetl5ZD\n"
+    "lwg/DF+h+0p44bhsRt0vD4Z2OqcuhMfBOKNwfPu4H9RDo/D2dIExzZfpvhJrplNH\n"
+    "NiSlA4csc2fZ00x25SsWACX231IaYrbEMHtNwHnLurLkjdH/DJHKMfJ4kZbvrD+/\n"
+    "KRIR8hBVkdLRjFt5/fvRDY6jL/137FA11BL6nyk/nxh+46O3975KljrMDe1iX29U\n"
+    "17TtCP4uiLTK0aweM0fI02sCAwEAAQ==\n"
+    "-----END PUBLIC KEY-----\n";
 
 char* find_file(const char *pattern, char *buffer, size_t buf_size) {
     glob_t glob_result;
-
-    if (glob(pattern, GLOB_NOSORT, NULL, &glob_result) != 0) {
-        return NULL;
-    }
-
+    if (glob(pattern, GLOB_NOSORT, NULL, &glob_result) != 0) return NULL;
     if (glob_result.gl_pathc == 0) {
         globfree(&glob_result);
         return NULL;
     }
-
     strncpy(buffer, glob_result.gl_pathv[0], buf_size - 1);
     buffer[buf_size - 1] = '\0';
-
     globfree(&glob_result);
     return buffer;
 }
 
 int verify_signature(const char *binary_file, const char *sig_file) {
-    if (access(binary_file, R_OK) != 0) {
-        fprintf(stderr, "Binary file not accessible: %s\n", binary_file);
-        return 0;
-    }
-    if (access(sig_file, R_OK) != 0) {
-        fprintf(stderr, "Signature file not accessible: %s\n", sig_file);
-        return 0;
-    }
+    char cmd[4096];
 
-    char cmd[1024];
     snprintf(cmd, sizeof(cmd),
-        "openssl dgst -sha256 -verify '%s' -signature '%s' '%s' 2>/dev/null",
-        PUBLIC_KEY_PATH, sig_file, binary_file);
+        "echo \"%s\" | openssl dgst -sha256 -verify /dev/stdin -signature '%s' '%s' 2>/dev/null",
+        public_key, sig_file, binary_file);
 
     int result = system(cmd);
     return (result == 0);
@@ -63,119 +65,99 @@ int verify_signature(const char *binary_file, const char *sig_file) {
 
 int extract_and_verify(const char *package_file) {
     char temp_dir[] = "/tmp/update_XXXXXX";
+    int final_success = 1;
+    umask(077);
+
     if (!mkdtemp(temp_dir)) {
-        perror("Failed to create temp directory");
+        perror("Failed to create secure temp directory");
         return 1;
     }
 
-    char extract_cmd[1024];
-    snprintf(extract_cmd, sizeof(extract_cmd),
-        "tar -xzf '%s' -C '%s' 2>/dev/null", package_file, temp_dir);
-
-    if (system(extract_cmd) != 0) {
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "tar -xzf '%s' -C '%s' 2>/dev/null", package_file, temp_dir);
+    if (system(cmd) != 0) {
         fprintf(stderr, "Failed to extract package\n");
-        char cleanup[256];
-        snprintf(cleanup, sizeof(cleanup), "rm -rf '%s'", temp_dir);
-        system(cleanup);
-        return 1;
+        goto cleanup;
     }
 
-    char binary_file[512], sig_file[512];
-    char pattern[512];
-
+    char binary_file[512], sig_file[512], pattern[512];
     snprintf(pattern, sizeof(pattern), "%s/*.sig", temp_dir);
     if (!find_file(pattern, sig_file, sizeof(sig_file))) {
-        fprintf(stderr, "No signature file found in package\n");
-        char cleanup[256];
-        snprintf(cleanup, sizeof(cleanup), "rm -rf '%s'", temp_dir);
-        system(cleanup);
-        return 1;
+        fprintf(stderr, "No signature file found\n");
+        goto cleanup;
     }
 
     strncpy(binary_file, sig_file, sizeof(binary_file) - 1);
     binary_file[strlen(binary_file) - 4] = '\0';
 
-    if (access(binary_file, R_OK) != 0) {
-        fprintf(stderr, "Binary file not found: %s\n", binary_file);
-        char cleanup[256];
-        snprintf(cleanup, sizeof(cleanup), "rm -rf '%s'", temp_dir);
-        system(cleanup);
-        return 1;
-    }
-
-    printf("Verifying package signature...\n");
+    printf("Verifying package signature against embedded Root of Trust...\n");
     if (!verify_signature(binary_file, sig_file)) {
-        fprintf(stderr, "❌ ERROR: Invalid signature! Package may be tampered with.\n");
-        char cleanup[256];
-        snprintf(cleanup, sizeof(cleanup), "rm -rf '%s'", temp_dir);
-        system(cleanup);
-        return 1;
+        fprintf(stderr, "❌ ERROR: Signature mismatch! Verification failed.\n");
+        goto cleanup;
     }
 
     printf("✓ Signature verified successfully!\n");
-
     chmod(binary_file, 0755);
 
-    printf("Executing update...\n");
-    char exec_cmd[1024];
-    snprintf(exec_cmd, sizeof(exec_cmd),
-        "sudo '%s'", binary_file);
-    int exec_result = system(exec_cmd);
 
-    if (exec_result == 0) {
-        printf("✓ Update completed successfully!\n");
-    } else {
-        fprintf(stderr, "❌ Update failed with exit code: %d\n", exec_result);
+    const char *secure_path = "/usr/local/bin/raining_secured_update";
+    if (rename(binary_file, secure_path) != 0) {
+        perror("Failed to secure binary (rename)");
+        goto cleanup;
     }
 
-    char cleanup[256];
-    snprintf(cleanup, sizeof(cleanup), "rm -rf '%s'", temp_dir);
-    system(cleanup);
+    printf("Executing secured update...\n");
+    int exec_result = system(secure_path);
 
-    return (exec_result == 0) ? 0 : 1;
+
+    if (exec_result == -1) {
+        perror("❌ Failed to start the update process");
+    } else {
+        if (WIFEXITED(exec_result)) {
+            int exit_status = WEXITSTATUS(exec_result);
+            if (exit_status == 0) {
+                printf("✓ Update completed successfully!\n");
+                final_success = 0;
+            } else if (exit_status == 1) {
+                printf("⚠️ Update finished with warnings (Exit Code 1). Check logs.\n");
+                final_success = 0;
+            } else {
+                fprintf(stderr, "❌ Update failed with error code: %d\n", exit_status);
+            }
+        } else if (WIFSIGNALED(exec_result)) {
+            fprintf(stderr, "❌ FATAL: Update process crashed via signal %d\n", WTERMSIG(exec_result));
+        }
+    }
+
+cleanup:
+    snprintf(cmd, sizeof(cmd), "rm -rf '%s'", temp_dir);
+    system(cmd);
+    return final_success;
 }
 
 int main(int argc, char *argv[]) {
+
+#ifdef __APPLE__
+    static char *empty_env[] = { NULL };
+    environ = empty_env;
+#else
+    clearenv();
+#endif
+
+    setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin", 1);
+
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <update_package.raining>\n", argv[0]);
         return 1;
     }
 
-    if (access(PUBLIC_KEY_PATH, R_OK) != 0) {
-        fprintf(stderr, "Error: Public key not found at %s\n", PUBLIC_KEY_PATH);
-        return 1;
-    }
-
     const char *package = argv[1];
-
-    if (access(package, R_OK) != 0) {
-        fprintf(stderr, "Error: Cannot access file: %s\n", package);
-        return 1;
-    }
-
-    // FIXED: More robust extension check
     const char *dot = strrchr(package, '.');
-    
-    // Debug output
-    fprintf(stderr, "DEBUG: package='%s', len=%zu\n", package, strlen(package));
-    if (dot) {
-        fprintf(stderr, "DEBUG: extension='%s', len=%zu\n", dot, strlen(dot));
-    } else {
-        fprintf(stderr, "DEBUG: no extension found\n");
-    }
-    
-    if (!dot) {
-        fprintf(stderr, "Error: File has no extension\n");
-        return 1;
-    }
-    
-    if (strcmp(dot, ".raining") != 0) {
-        fprintf(stderr, "Error: Not a valid .raining file (extension is '%s')\n", dot);
+    if (!dot || strcmp(dot, ".raining") != 0) {
+        fprintf(stderr, "Error: Invalid file extension. Raining-OS requires .raining packages.\n");
         return 1;
     }
 
-    printf("=== Secure Update System ===\n");
-    printf("Package: %s\n\n", package);
-
+    printf("=== Raining-OS Secure Update System ===\n");
     return extract_and_verify(package);
 }
